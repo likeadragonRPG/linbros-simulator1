@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="立鉑模擬器">
+<meta name="theme-color" content="#1a1a18">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>立鉑 × BTC 投資模擬器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#ffffff;--bg2:#f5f4ef;--bg3:#eeeee8;
+  --text:#1a1a18;--text2:#5f5e5a;--text3:#888780;
+  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);
+  --blue:#185FA5;--blue-bg:#E6F1FB;--blue-text:#0C447C;
+  --green:#0F6E56;--green-bg:#E1F5EE;--green-text:#085041;
+  --amber:#BA7517;--amber-bg:#FAEEDA;--amber-text:#633806;
+  --purple:#534AB7;--purple-bg:#EEEDFE;--purple-text:#3C3489;
+  --radius:8px;--radius-lg:12px;
+  --safe-top:env(safe-area-inset-top);
+  --safe-bottom:env(safe-area-inset-bottom);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1c1c1a;--bg2:#252523;--bg3:#2e2e2b;
+    --text:#f0efe8;--text2:#b4b2a9;--text3:#888780;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
+    --blue-bg:#0c2d4f;--blue-text:#85b7eb;
+    --green-bg:#052e22;--green-text:#5dcaa5;
+    --amber-bg:#3a2608;--amber-text:#fac775;
+    --purple-bg:#201d52;--purple-text:#afa9ec;
+  }
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;
+  background:var(--bg3);color:var(--text);font-size:14px;line-height:1.6;
+  display:flex;flex-direction:column;
+}
+
+/* ── Top nav bar ── */
+.navbar{
+  background:var(--bg);
+  border-bottom:0.5px solid var(--border);
+  padding:calc(var(--safe-top) + 12px) 16px 12px;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.navbar-title{font-size:17px;font-weight:600;color:var(--text)}
+.navbar-sub{font-size:11px;color:var(--text3);margin-top:1px}
+
+/* ── Bottom tab bar ── */
+.tabbar{
+  background:var(--bg);
+  border-top:0.5px solid var(--border);
+  padding:8px 0 calc(var(--safe-bottom) + 4px);
+  display:flex;flex-shrink:0;
+}
+.tabbar-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:3px;cursor:pointer;padding:4px 0;
+  font-size:10px;color:var(--text3);border:none;background:transparent;
+  font-family:inherit;
+}
+.tabbar-item.active{color:var(--amber)}
+.tabbar-icon{font-size:20px;line-height:1}
+
+/* ── Scrollable content ── */
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 8px}
+
+/* ── Section label ── */
+.slabel{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:1.1rem 0 .5rem}
+.slabel:first-child{margin-top:0}
+
+/* ── Slider rows ── */
+.sr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sr label{font-size:12px;color:var(--text2);flex:1}
+.sr input[type=range]{width:130px;flex-shrink:0;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--bg3);outline:none;cursor:pointer}
+.sr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--text);cursor:pointer;border:2.5px solid var(--bg)}
+.sv{font-size:12px;font-weight:500;min-width:52px;text-align:right;color:var(--text)}
+
+/* ── Metric cards ── */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.mc{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:.8rem 1rem}
+.ml{font-size:11px;color:var(--text2);margin-bottom:3px}
+.mv{font-size:19px;font-weight:600}
+.ms{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* ── Chart tabs ── */
+.chart-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.ctab{font-size:12px;padding:6px 14px;border-radius:20px;border:0.5px solid var(--border2);cursor:pointer;color:var(--text2);background:transparent;font-family:inherit}
+.ctab.active{background:var(--amber-bg);color:var(--amber-text);border-color:transparent;font-weight:500}
+
+/* ── Chart card ── */
+.chart-card{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:1rem;margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;font-size:11px;color:var(--text2)}
+.legend span{display:flex;align-items:center;gap:4px}
+.ld{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.cw{position:relative;width:100%;height:220px}
+
+/* ── Milestones ── */
+.mcard{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:.8rem 1rem;margin-bottom:8px}
+.mrow{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px;gap:6px}
+.mrow:last-child{border-bottom:none}
+.my{font-weight:600;width:40px;flex-shrink:0}
+.md{color:var(--text2);flex:1;font-size:11px}
+.mv2{font-weight:500;text-align:right;min-width:80px;flex-shrink:0}
+.badge{display:inline-block;background:var(--amber-bg);color:var(--amber-text);font-size:9px;padding:1px 5px;border-radius:4px;margin-left:3px;font-weight:500}
+
+/* ── Alert ── */
+.alert{border-radius:var(--radius);padding:10px 12px;font-size:12px;margin-bottom:8px;line-height:1.5}
+.alert-info{background:var(--blue-bg);color:var(--blue-text)}
+.alert-warn{background:var(--amber-bg);color:var(--amber-text)}
+.alert-note{background:var(--bg2);color:var(--text2)}
+
+/* ── Footer ── */
+.footer{font-size:10px;color:var(--text3);text-align:center;padding:8px 0 4px;line-height:1.6}
+
+/* ── Install banner ── */
+.install-banner{
+  background:var(--amber-bg);color:var(--amber-text);
+  padding:10px 16px;font-size:12px;line-height:1.5;
+  display:flex;justify-content:space-between;align-items:center;
+  flex-shrink:0;
+}
+.install-banner.hidden{display:none}
+.install-close{background:none;border:none;color:var(--amber-text);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div>
+    <div class="navbar-title">立鉑 × BTC 模擬器</div>
+    <div class="navbar-sub">2026–2050 · USD 計價</div>
+  </div>
+</div>
+
+<div class="install-banner" id="installBanner">
+  <span>點「分享」→「加入主畫面」即可安裝為 App</span>
+  <button class="install-close" onclick="document.getElementById('installBanner').classList.add('hidden')">×</button>
+</div>
+
+<div class="content" id="content">
+  <!-- 由 JS 動態渲染 -->
+</div>
+
+<div class="tabbar">
+  <button class="tabbar-item active" onclick="showPage('params',this)" id="tab-params">
+    <span class="tabbar-icon">⚙</span>參數
+  </button>
+  <button class="tabbar-item" onclick="showPage('dashboard',this)" id="tab-dashboard">
+    <span class="tabbar-icon">◈</span>總覽
+  </button>
+  <button class="tabbar-item" onclick="showPage('chart',this)" id="tab-chart">
+    <span class="tabbar-icon">▲</span>圖表
+  </button>
+  <button class="tabbar-item" onclick="showPage('milestones',this)" id="tab-milestones">
+    <span class="tabbar-icon">◎</span>里程碑
+  </button>
+</div>
+
+<script>
+const SHARES=50, TOTAL_SHARES=2333.3;
+let chartInst=null, currentChartTab='btcval', currentPage='params';
+
+const state={
+  profit0:160,growth:30,stable:10,payout:60,fx:32,
+  btcPrice:85000,btcGrowth:40,pe:15,disc:40
+};
+
+function fmtUSD(n){
+  if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';
+  return'$'+Math.round(n);
+}
+function fmtN(n,d){return(+n).toFixed(d||2);}
+
+function calc(){
+  const{profit0K=state.profit0,growth=state.growth/100,stable=state.stable/100,
+    payout=state.payout/100,fx=state.fx,btcPrice0=state.btcPrice,
+    btcGrowth=state.btcGrowth/100,pe=state.pe,disc=state.disc/100}={};
+  const g=state.growth/100,s=state.stable/100,p=state.payout/100;
+  const btcG=state.btcGrowth/100,d=state.disc/100;
+
+  const years=[],divUSD=[],btcQty=[],btcVal=[],btcPx=[],equities=[],etf=[];
+  let profitK=state.profit0,btcAccum=0;
+  const deps=[];
+
+  for(let y=2026;y<=2050;y++){
+    const idx=y-2026; years.push(y);
+    const profitTWD=profitK*1000*state.fx;
+    const divTWD=(profitTWD*p/TOTAL_SHARES)*SHARES;
+    const dUSD=divTWD/state.fx; divUSD.push(dUSD);
+    const btcNow=state.btcPrice*Math.pow(1+btcG,idx); btcPx.push(btcNow);
+    btcAccum+=dUSD/btcNow; btcQty.push(+btcAccum.toFixed(5));
+    btcVal.push(btcAccum*btcNow);
+    deps.push(dUSD);
+    let etfTotal=0;
+    for(let j=0;j<=idx;j++) etfTotal+=deps[j]*Math.pow(1.08,idx-j);
+    etf.push(etfTotal);
+    equities.push(profitTWD*state.pe*0.025*(1-d)/state.fx);
+    profitK*=(1+(y<=2035?g:s));
+  }
+
+  const last=years.length-1;
+  let crossYear=null;
+  for(let i=0;i<years.length;i++){if(btcVal[i]>etf[i]){crossYear=years[i];break;}}
+
+  const ms=[2027,2030,2033,2037,2040,2045,2050].map(my=>{
+    const i=years.indexOf(my); if(i<0)return null;
+    return{year:my,div:divUSD[i],btcQ:btcQty[i],btcV:btcVal[i],eq:equities[i],etf:etf[i],price:btcPx[i]};
+  }).filter(Boolean);
+
+  return{years,divUSD,btcQty,btcVal,btcPx,equities,etf,ms,crossYear,
+    btc2050:btcQty[last],btcVal2050:btcVal[last],eq2050:equities[last],
+    etf2050:etf[last],btcPrice2050:btcPx[last]};
+}
+
+function sliderHTML(id,label,min,max,step,val,display){
+  return`<div class="sr">
+    <label for="${id}">${label}</label>
+    <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">
+    <span class="sv" id="${id}-out">${display}</span>
+  </div>`;
+}
+
+function formatVal(id,v){
+  if(id==='profit0')return'$'+v+'K';
+  if(id==='btcPrice')return'$'+(v/1000).toFixed(0)+'K';
+  if(id==='pe')return v+' 倍';
+  if(id==='fx')return v;
+  return v+'%';
+}
+
+function bindSliders(){
+  ['profit0','growth','stable','payout','fx','btcPrice','btcGrowth','pe','disc'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const out=document.getElementById(id+'-out');
+    el.addEventListener('input',()=>{
+      state[id]=+el.value;
+      out.textContent=formatVal(id,el.value);
+      if(currentPage==='dashboard') renderDashboard();
+      else if(currentPage==='chart') renderChart();
+      else if(currentPage==='milestones') renderMilestones();
+    });
+  });
+}
+
+function renderParams(){
+  document.getElementById('content').innerHTML=`
+    <div class="slabel">公司獲利參數</div>
+    ${sliderHTML('profit0','2026 首年淨利（千美元）',10,700,10,state.profit0,'$'+state.profit0+'K')}
+    ${sliderHTML('growth','淨利成長率 2026–2035',10,60,1,state.growth,state.growth+'%')}
+    ${sliderHTML('stable','淨利成長率 2036–2050',5,25,1,state.stable,state.stable+'%')}
+    ${sliderHTML('payout','配息率（payout ratio）',20,100,5,state.payout,state.payout+'%')}
+    ${sliderHTML('fx','USD/TWD 匯率',28,36,0.5,state.fx,state.fx)}
+
+    <div class="slabel">比特幣參數</div>
+    ${sliderHTML('btcPrice','BTC 現價（USD）',50000,200000,5000,state.btcPrice,'$'+(state.btcPrice/1000).toFixed(0)+'K')}
+    ${sliderHTML('btcGrowth','BTC 年化成長率',10,80,5,state.btcGrowth,state.btcGrowth+'%')}
+
+    <div class="slabel">立鉑股權估值</div>
+    ${sliderHTML('pe','本益比（P/E 倍數）',8,30,1,state.pe,state.pe+' 倍')}
+    ${sliderHTML('disc','私有公司流動性折扣',20,60,5,state.disc,state.disc+'%')}
+
+    <div class="footer">持股 50 萬股（2.5%）· 增資成本 37.5 萬 TWD<br>本工具為財務推估，不構成投資建議</div>
+  `;
+  bindSliders();
+}
+
+function renderDashboard(){
+  const d=calc();
+  const total2050=d.btcVal2050+d.eq2050;
+  document.getElementById('content').innerHTML=`
+    <div class="slabel">2050 年終值預測</div>
+    <div class="metrics">
+      <div class="mc"><div class="ml">累計 BTC</div><div class="mv" style="color:#BA7517">${fmtN(d.btc2050,3)} 顆</div><div class="ms">持續買入至2050</div></div>
+      <div class="mc"><div class="ml">BTC 市值</div><div class="mv" style="color:#BA7517">${fmtUSD(d.btcVal2050)}</div><div class="ms">BTC ${fmtUSD(Math.round(d.btcPrice2050))}/顆</div></div>
+      <div class="mc"><div class="ml">0050 複利</div><div class="mv" style="color:#0F6E56">${fmtUSD(d.etf2050)}</div><div class="ms">逐筆複利 8% 年化</div></div>
+      <div class="mc"><div class="ml">立鉑股權</div><div class="mv" style="color:#534AB7">${fmtUSD(d.eq2050)}</div><div class="ms">${state.pe}倍P/E，折扣${state.disc}%</div></div>
+      <div class="mc"><div class="ml">BTC 超越 0050</div><div class="mv" style="color:${d.crossYear?'#BA7517':'#888780'}">${d.crossYear||'未超越'}</div><div class="ms">${d.crossYear?'BTC持倉首次領先':'調高BTC年化觸發'}</div></div>
+      <div class="mc"><div class="ml">BTC + 股權總值</div><div class="mv" style="color:#0F6E56">${fmtUSD(total2050)}</div><div class="ms">兩項資產合計</div></div>
+    </div>
+    <div id="alertBox"></div>
+    <div class="footer">所有數字為假設情境推估</div>
+  `;
+  const alertEl=document.getElementById('alertBox');
+  if(d.crossYear){
+    alertEl.innerHTML=`<div class="alert alert-info">${d.crossYear} 年 BTC 持倉首次超越 0050 複利路線。</div>`;
+  } else if(state.btcGrowth>=40){
+    alertEl.innerHTML=`<div class="alert alert-warn">BTC ${state.btcGrowth}% 年化為樂觀假設，歷史曾有 -80% 單年跌幅，此模型不含回撤風險。</div>`;
+  }
+}
+
+function renderChart(){
+  const d=calc();
+  document.getElementById('content').innerHTML=`
+    <div class="chart-tabs">
+      <button class="ctab ${currentChartTab==='btcval'?'active':''}" onclick="switchChart('btcval',this)">BTC 市值</button>
+      <button class="ctab ${currentChartTab==='btcqty'?'active':''}" onclick="switchChart('btcqty',this)">BTC 數量</button>
+      <button class="ctab ${currentChartTab==='compare'?'active':''}" onclick="switchChart('compare',this)">三策略</button>
+      <button class="ctab ${currentChartTab==='equity'?'active':''}" onclick="switchChart('equity',this)">立鉑股權</button>
+    </div>
+    <div class="chart-card">
+      <div id="legendBox" class="legend"></div>
+      <div class="cw"><canvas id="mainChart" role="img" aria-label="投資預測圖表"></canvas></div>
+    </div>
+  `;
+  drawChart(d);
+}
+
+function drawChart(d){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  let datasets=[],legendHtml='';
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const gridColor=isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)';
+
+  if(currentChartTab==='btcval'){
+    datasets=[{label:'BTC市值',data:d.btcVal,borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,0.1)',fill:true,tension:0.3,pointRadius:0}];
+    legendHtml=`<span><span class="ld" style="background:#BA7517"></span>BTC 持倉市值（USD）</span>`;
+  } else if(currentChartTab==='btcqty'){
+    datasets=[{label:'BTC數量',data:d.btcQty,borderColor:'#EF9F27',backgroundColor:'rgba(239,159,39,0.1)',fill:true,tension:0.3,pointRadius:0}];
+    legendHtml=`<span><span class="ld" style="background:#EF9F27"></span>累計 BTC 數量（顆）</span>`;
+  } else if(currentChartTab==='compare'){
+    datasets=[
+      {label:'BTC',data:d.btcVal,borderColor:'#BA7517',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2},
+      {label:'0050',data:d.etf,borderColor:'#0F6E56',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderDash:[5,3],borderWidth:2},
+      {label:'股權',data:d.equities,borderColor:'#534AB7',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderDash:[3,3],borderWidth:2}
+    ];
+    legendHtml=`<span><span class="ld" style="background:#BA7517"></span>全換BTC</span><span><span class="ld" style="background:#0F6E56"></span>0050複利</span><span><span class="ld" style="background:#534AB7"></span>立鉑股權</span>`;
+  } else {
+    datasets=[{label:'立鉑股權',data:d.equities,borderColor:'#534AB7',backgroundColor:'rgba(83,74,183,0.1)',fill:true,tension:0.3,pointRadius:0}];
+    legendHtml=`<span><span class="ld" style="background:#534AB7"></span>立鉑股權估值（USD）</span>`;
+  }
+
+  document.getElementById('legendBox').innerHTML=legendHtml;
+  const ctx=document.getElementById('mainChart');
+  chartInst=new Chart(ctx,{
+    type:'line',data:{labels:d.years,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{autoSkip:true,maxTicksLimit:8,font:{size:10},color:'#888780'},grid:{display:false}},
+        y:{ticks:{font:{size:10},color:'#888780',callback:v=>{
+          if(currentChartTab==='btcqty')return fmtN(v,2)+'顆';
+          if(v>=1e9)return'$'+(v/1e9).toFixed(1)+'B';
+          if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';
+          if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';
+          return'$'+Math.round(v);
+        }},grid:{color:gridColor}}
+      }
+    }
+  });
+}
+
+function switchChart(tab,el){
+  currentChartTab=tab;
+  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  drawChart(calc());
+}
+
+function renderMilestones(){
+  const d=calc();
+  document.getElementById('content').innerHTML=`
+    <div class="slabel">關鍵里程碑</div>
+    <div class="mcard">
+      ${d.ms.map(m=>{
+        const lead=m.btcV>m.etf;
+        return`<div class="mrow">
+          <span class="my">${m.year}</span>
+          <span class="md">BTC ${fmtUSD(Math.round(m.btcV))} · 0050 ${fmtUSD(Math.round(m.etf))}${lead?'<span class="badge">BTC領先</span>':''}</span>
+          <span class="mv2">${fmtN(m.btcQ,3)} 顆</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="slabel">年度分紅明細</div>
+    <div class="mcard">
+      ${d.ms.map(m=>`<div class="mrow">
+        <span class="my">${m.year}</span>
+        <span class="md">年分紅 ${fmtUSD(Math.round(m.div))} · BTC均價 ${fmtUSD(Math.round(m.price))}</span>
+        <span class="mv2">+${fmtN(m.div/m.price,4)} 顆</span>
+      </div>`).join('')}
+    </div>
+    <div class="footer">以上為假設情境推估</div>
+  `;
+}
+
+function showPage(page,el){
+  currentPage=page;
+  document.querySelectorAll('.tabbar-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('content').scrollTop=0;
+  if(page==='params') renderParams();
+  else if(page==='dashboard') renderDashboard();
+  else if(page==='chart') renderChart();
+  else if(page==='milestones') renderMilestones();
+}
+
+// Service Worker 註冊
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+
+// 初始渲染
+renderParams();
+</script>
+</body>
+</html>
